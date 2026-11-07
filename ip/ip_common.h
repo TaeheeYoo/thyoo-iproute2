@@ -91,6 +91,7 @@ int netns_identify_pid(const char *pidstr, char *name, int len);
 int do_seg6(int argc, char **argv);
 int do_ipnh(int argc, char **argv);
 int do_mptcp(int argc, char **argv);
+int do_ipknod(int argc, char **argv);
 int do_ioam6(int argc, char **argv);
 int do_ipstats(int argc, char **argv);
 
