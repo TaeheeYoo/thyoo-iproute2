@@ -21,7 +21,6 @@ static void usage(void)
 {
 	fprintf(stderr,
 		"Usage:	ip knod list\n"
-		"	ip knod set id ID feature { none | bpf | ipsec }\n"
 		"	ip knod help\n");
 	exit(-1);
 }
@@ -41,19 +40,6 @@ static const char *knod_type_name(__u32 type)
 		return "gpu";
 	case KNOD_ACCEL_TYPE_DPU:
 		return "dpu";
-	}
-	return "unknown";
-}
-
-static const char *knod_feature_name(__u32 feature)
-{
-	switch (feature) {
-	case KNOD_FEATURE_NONE:
-		return "none";
-	case KNOD_FEATURE_BPF:
-		return "bpf";
-	case KNOD_FEATURE_IPSEC:
-		return "ipsec";
 	}
 	return "unknown";
 }
@@ -84,11 +70,8 @@ static int print_knod_accel(struct nlmsghdr *n, void *arg)
 		print_string(PRINT_ANY, "name", "name %s ",
 			     rta_getattr_str(tb[KNOD_A_ACCEL_NAME]));
 	if (tb[KNOD_A_ACCEL_TYPE])
-		print_string(PRINT_ANY, "type", "type %s ",
+		print_string(PRINT_ANY, "type", "type %s",
 			     knod_type_name(rta_getattr_u32(tb[KNOD_A_ACCEL_TYPE])));
-	if (tb[KNOD_A_ACCEL_FEATURE_ENA])
-		print_string(PRINT_ANY, "feature", "feature %s",
-			     knod_feature_name(rta_getattr_u32(tb[KNOD_A_ACCEL_FEATURE_ENA])));
 	close_json_object();
 	print_nl();
 	return 0;
@@ -169,45 +152,6 @@ static int knod_list(void)
 	return err;
 }
 
-static int knod_set(int argc, char **argv)
-{
-	KNOD_REQUEST(req, KNOD_CMD_ACCEL_SET, NLM_F_REQUEST);
-	__u32 id = 0, feature = KNOD_FEATURE_NONE;
-	bool have_id = false, have_feature = false;
-
-	while (argc > 0) {
-		if (strcmp(*argv, "id") == 0) {
-			NEXT_ARG();
-			if (get_u32(&id, *argv, 0))
-				invarg("invalid id", *argv);
-			have_id = true;
-		} else if (strcmp(*argv, "feature") == 0) {
-			NEXT_ARG();
-			if (strcmp(*argv, "none") == 0)
-				feature = KNOD_FEATURE_NONE;
-			else if (strcmp(*argv, "bpf") == 0)
-				feature = KNOD_FEATURE_BPF;
-			else if (strcmp(*argv, "ipsec") == 0)
-				feature = KNOD_FEATURE_IPSEC;
-			else
-				invarg("feature is none, bpf or ipsec", *argv);
-			have_feature = true;
-		} else {
-			usage();
-		}
-		argc--;
-		argv++;
-	}
-	if (!have_id || !have_feature)
-		usage();
-
-	addattr32(&req.n, KNOD_BUFLEN, KNOD_A_ACCEL_ID, id);
-	addattr32(&req.n, KNOD_BUFLEN, KNOD_A_ACCEL_FEATURE_ENA, feature);
-	if (rtnl_talk(&genl_rth, &req.n, NULL) < 0)
-		return -1;
-	return 0;
-}
-
 int do_ipknod(int argc, char **argv)
 {
 	if (argc > 0 && strcmp(*argv, "help") == 0)
@@ -219,8 +163,6 @@ int do_ipknod(int argc, char **argv)
 	if (argc == 0 || strcmp(*argv, "list") == 0 ||
 	    strcmp(*argv, "show") == 0)
 		return knod_list();
-	if (strcmp(*argv, "set") == 0)
-		return knod_set(argc - 1, argv + 1);
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip knod help\".\n",
 		*argv);
